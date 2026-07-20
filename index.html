@@ -11,9 +11,9 @@
 <!-- Lucide আইকন -->
 <script src="https://unpkg.com/lucide@latest"></script>
 
-<!-- DOCX এক্সপোর্ট -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<!-- ★ DOCX এক্সপোর্ট (সঠিক UMD build — ব্রাউজারে window.docx তৈরি করে) -->
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 
 <style>
   :root{
@@ -44,7 +44,7 @@
   }
   .app{display:flex;min-height:100vh;}
 
-  /* Sidebar */
+  /* Sidebar (ডেস্কটপ) */
   .sidebar{
     width:250px;background:var(--surface);border-right:1px solid var(--border);
     padding:24px 16px;display:flex;flex-direction:column;gap:6px;
@@ -148,13 +148,11 @@
   .bottom-nav{display:none;}
 
   /* Mobile */
-  .menu-btn{display:none;}
   @media(max-width:820px){
     .sidebar{display:none;}
     .main{padding:18px 16px 90px;}
     .topbar h2{font-size:20px;}
 
-    /* Bottom Tab Bar */
     .bottom-nav{
       display:flex;position:fixed;bottom:0;left:0;right:0;z-index:90;
       background:var(--surface);border-top:1px solid var(--border);
@@ -418,21 +416,31 @@ window.render = function(){
 };
 function esc(s){return (s||'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
+/* লাইব্রেরি লোড হওয়া পর্যন্ত অপেক্ষা */
+function waitForLibs(timeout = 8000){
+  return new Promise((resolve, reject)=>{
+    const start = Date.now();
+    (function check(){
+      if(typeof docx !== 'undefined' && typeof saveAs !== 'undefined'){ resolve(); }
+      else if(Date.now() - start > timeout){ reject(new Error('লাইব্রেরি লোড হয়নি')); }
+      else { setTimeout(check, 150); }
+    })();
+  });
+}
+
 /* ★★★ DOCX এক্সপোর্ট — ১০০% ফিক্সড ★★★ */
 window.exportDocx = async function(){
   const data = window.__getEntries ? window.__getEntries() : [];
   if(data.length===0){ toast('এক্সপোর্ট করার মতো ডেটা নেই','err'); return; }
 
-  // লাইব্রেরি লোড চেক
-  if(typeof docx === 'undefined'){ toast('DOCX লাইব্রেরি লোড হয়নি, রিফ্রেশ করুন','err'); return; }
-  if(typeof saveAs === 'undefined'){ toast('FileSaver লোড হয়নি, রিফ্রেশ করুন','err'); return; }
+  try{ await waitForLibs(); }
+  catch(e){ toast('DOCX লাইব্রেরি লোড হয়নি, ইন্টারনেট চেক করে রিফ্রেশ করুন','err'); return; }
 
   try{
     const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
             WidthType, AlignmentType, BorderStyle } = docx;
 
-    // বাংলা ফন্ট নাম (Word-এ বাংলা রেন্ডারের জন্য)
-    const BN_FONT = "Nikosh";
+    const BN_FONT = "Nikosh"; // দরকার হলে "Kalpurush" বা "SolaimanLipi" দিন
 
     const headerCell=(txt)=>new TableCell({
       shading:{fill:"0E7490"},
@@ -457,19 +465,17 @@ window.exportDocx = async function(){
     const table=new Table({
       width:{size:100,type:WidthType.PERCENTAGE},
       rows, borders:{
-        top:{style:BorderStyle.SINGLE,size:1,color:"9CC"},
-        bottom:{style:BorderStyle.SINGLE,size:1,color:"9CC"},
-        left:{style:BorderStyle.SINGLE,size:1,color:"9CC"},
-        right:{style:BorderStyle.SINGLE,size:1,color:"9CC"},
-        insideHorizontal:{style:BorderStyle.SINGLE,size:1,color:"CCE"},
-        insideVertical:{style:BorderStyle.SINGLE,size:1,color:"CCE"}}
+        top:{style:BorderStyle.SINGLE,size:1,color:"99CCCC"},
+        bottom:{style:BorderStyle.SINGLE,size:1,color:"99CCCC"},
+        left:{style:BorderStyle.SINGLE,size:1,color:"99CCCC"},
+        right:{style:BorderStyle.SINGLE,size:1,color:"99CCCC"},
+        insideHorizontal:{style:BorderStyle.SINGLE,size:1,color:"CCEEEE"},
+        insideVertical:{style:BorderStyle.SINGLE,size:1,color:"CCEEEE"}}
     });
 
     const now=new Date().toLocaleString('bn-BD');
     const document_ = new Document({
-      styles:{
-        default:{ document:{ run:{ font:BN_FONT } } }
-      },
+      styles:{ default:{ document:{ run:{ font:BN_FONT } } } },
       sections:[{ children:[
         new Paragraph({alignment:AlignmentType.CENTER,
           children:[new TextRun({text:"ডেটা এন্ট্রি রিপোর্ট",bold:true,size:36,color:"0E7490",font:BN_FONT})]}),
