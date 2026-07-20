@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ডেটা এন্ট্রি ম্যানেজার</title>
+
+<!-- Google Font (বাংলা + ইংরেজি) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Lucide প্রিমিয়াম আইকন (ইমোজি নয়) -->
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<!-- DOCX এক্সপোর্টের জন্য -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<style>
+  :root{
+    --bg:#0f1420;
+    --surface:#1a2233;
+    --surface-2:#232d42;
+    --border:#2d3a52;
+    --text:#e8edf5;
+    --text-dim:#9aa7bd;
+    --primary:#6366f1;
+    --primary-hover:#7c7ff5;
+    --success:#22c55e;
+    --danger:#ef4444;
+    --warning:#f59e0b;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+    --radius:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    font-family:'Hind Siliguri','Inter',sans-serif;
+    background:radial-gradient(1200px 600px at 100% -10%,#1c2740 0%,var(--bg) 45%);
+    color:var(--text);
+    min-height:100vh;
+  }
+  .app{display:flex;min-height:100vh;}
+
+  /* Sidebar */
+  .sidebar{
+    width:250px;background:var(--surface);border-right:1px solid var(--border);
+    padding:24px 16px;display:flex;flex-direction:column;gap:6px;
+    position:sticky;top:0;height:100vh;
+  }
+  .brand{display:flex;align-items:center;gap:12px;padding:8px 12px 22px;}
+  .brand .logo{width:42px;height:42px;border-radius:12px;
+    background:linear-gradient(135deg,var(--primary),#a855f7);
+    display:grid;place-items:center;color:#fff;box-shadow:0 6px 16px rgba(99,102,241,.4);}
+  .brand h1{font-size:17px;font-weight:700;letter-spacing:.2px;}
+  .brand span{font-size:11px;color:var(--text-dim);}
+  .nav-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;
+    color:var(--text-dim);cursor:pointer;font-weight:500;transition:.2s;font-size:14.5px;}
+  .nav-item:hover{background:var(--surface-2);color:var(--text);}
+  .nav-item.active{background:linear-gradient(135deg,rgba(99,102,241,.22),rgba(168,85,247,.14));
+    color:#fff;border:1px solid rgba(99,102,241,.35);}
+  .sync-badge{margin-top:auto;font-size:12px;color:var(--text-dim);
+    display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface-2);border-radius:10px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--warning);animation:pulse 1.5s infinite;}
+  .dot.online{background:var(--success);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+  /* Main */
+  .main{flex:1;padding:28px 32px;overflow:auto;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:26px;flex-wrap:wrap;gap:12px;}
+  .topbar h2{font-size:24px;font-weight:700;}
+  .topbar p{color:var(--text-dim);font-size:13.5px;margin-top:2px;}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border:none;border-radius:12px;
+    font-family:inherit;font-weight:600;font-size:14px;cursor:pointer;transition:.2s;}
+  .btn-primary{background:linear-gradient(135deg,var(--primary),#8b5cf6);color:#fff;box-shadow:0 6px 18px rgba(99,102,241,.35);}
+  .btn-primary:hover{transform:translateY(-1px);}
+  .btn-ghost{background:var(--surface-2);color:var(--text);border:1px solid var(--border);}
+  .btn-ghost:hover{background:var(--border);}
+  .btn-icon{padding:8px;border-radius:9px;background:transparent;border:1px solid transparent;}
+  .btn-icon:hover{background:var(--surface-2);}
+  .btn-icon.edit:hover{color:var(--primary);}
+  .btn-icon.del:hover{color:var(--danger);}
+
+  /* Cards / stats */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:26px;}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;
+    display:flex;align-items:center;gap:16px;box-shadow:var(--shadow);}
+  .stat .ic{width:48px;height:48px;border-radius:12px;display:grid;place-items:center;color:#fff;}
+  .ic.i1{background:linear-gradient(135deg,#6366f1,#8b5cf6);}
+  .ic.i2{background:linear-gradient(135deg,#22c55e,#16a34a);}
+  .ic.i3{background:linear-gradient(135deg,#f59e0b,#ef4444);}
+  .stat .num{font-size:26px;font-weight:700;}
+  .stat .lbl{font-size:13px;color:var(--text-dim);}
+
+  /* Panel */
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:22px;box-shadow:var(--shadow);}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+  .panel-head h3{font-size:16px;font-weight:700;display:flex;align-items:center;gap:9px;}
+  .search{display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);
+    border-radius:10px;padding:8px 12px;min-width:220px;}
+  .search input{background:none;border:none;outline:none;color:var(--text);font-family:inherit;font-size:14px;width:100%;}
+
+  /* Table */
+  .table-wrap{overflow-x:auto;border-radius:12px;}
+  table{width:100%;border-collapse:collapse;min-width:520px;}
+  th{text-align:right;font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);
+    padding:12px 14px;border-bottom:1px solid var(--border);font-weight:600;}
+  td{padding:14px;border-bottom:1px solid var(--border);font-size:14.5px;}
+  tbody tr{transition:.15s;}
+  tbody tr:hover{background:var(--surface-2);}
+  .serial{color:var(--text-dim);font-weight:600;}
+  .code-pill{background:rgba(99,102,241,.15);color:var(--primary-hover);padding:4px 10px;border-radius:8px;
+    font-weight:600;font-size:13px;}
+  .wa{display:inline-flex;align-items:center;gap:6px;color:var(--success);}
+  .actions{display:flex;gap:4px;justify-content:flex-end;}
+  .empty{text-align:center;padding:50px 20px;color:var(--text-dim);}
+  .empty .ei{margin-bottom:12px;opacity:.5;}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(6,10,20,.72);backdrop-filter:blur(4px);
+    display:none;place-items:center;z-index:50;padding:20px;}
+  .overlay.show{display:grid;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:26px;
+    width:100%;max-width:440px;box-shadow:var(--shadow);animation:pop .25s ease;}
+  @keyframes pop{from{transform:scale(.94);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .modal h3{font-size:19px;margin-bottom:20px;display:flex;align-items:center;gap:10px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:13px;color:var(--text-dim);margin-bottom:7px;font-weight:500;}
+  .field input{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:11px;
+    padding:12px 14px;color:var(--text);font-family:inherit;font-size:15px;outline:none;transition:.2s;}
+  .field input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.15);}
+  .modal-actions{display:flex;gap:10px;margin-top:24px;}
+  .modal-actions .btn{flex:1;justify-content:center;}
+
+  /* Toast */
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120px);
+    background:var(--surface-2);border:1px solid var(--border);padding:13px 20px;border-radius:12px;
+    display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);z-index:80;transition:.35s;font-size:14px;}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+  .toast.ok{border-color:rgba(34,197,94,.5);} .toast.ok i{color:var(--success);}
+  .toast.err{border-color:rgba(239,68,68,.5);} .toast.err i{color:var(--danger);}
+
+  /* Mobile */
+  .menu-btn{display:none;}
+  @media(max-width:820px){
+    .sidebar{position:fixed;left:-260px;z-index:60;transition:.3s;height:100vh;}
+    .sidebar.open{left:0;}
+    .menu-btn{display:inline-flex;}
+    .main{padding:18px;}
+    .topbar h2{font-size:20px;}
+    .backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55;}
+    .backdrop.show{display:block;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo"><i data-lucide="database" width="22"></i></div>
+      <div><h1>ডেটা ম্যানেজার</h1><span>Premium Entry System</span></div>
+    </div>
+    <div class="nav-item active"><i data-lucide="layout-dashboard" width="19"></i> ড্যাশবোর্ড</div>
+    <div class="nav-item" onclick="openModal()"><i data-lucide="plus-circle" width="19"></i> নতুন এন্ট্রি</div>
+    <div class="nav-item" onclick="exportDocx()"><i data-lucide="file-down" width="19"></i> DOCX এক্সপোর্ট</div>
+    <div class="sync-badge"><span class="dot" id="syncDot"></span> <span id="syncTxt">সংযোগ হচ্ছে...</span></div>
+  </aside>
+  <div class="backdrop" id="backdrop" onclick="toggleMenu()"></div>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <button class="btn btn-ghost btn-icon menu-btn" onclick="toggleMenu()"><i data-lucide="menu" width="20"></i></button>
+        <div><h2>ড্যাশবোর্ড</h2><p>মোবাইল ও ল্যাপটপ — সব জায়গায় একই ডেটা</p></div>
+      </div>
+      <button class="btn btn-primary" onclick="openModal()"><i data-lucide="plus" width="18"></i> নতুন এন্ট্রি</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat"><div class="ic i1"><i data-lucide="users" width="24"></i></div>
+        <div><div class="num" id="statTotal">0</div><div class="lbl">মোট এন্ট্রি</div></div></div>
+      <div class="stat"><div class="ic i2"><i data-lucide="message-circle" width="24"></i></div>
+        <div><div class="num" id="statWa">0</div><div class="lbl">হোয়াটসঅ্যাপ নম্বর</div></div></div>
+      <div class="stat"><div class="ic i3"><i data-lucide="clock" width="24"></i></div>
+        <div><div class="num" id="statLast">—</div><div class="lbl">সর্বশেষ আপডেট</div></div></div>
+    </div>
+
+    <!-- Table Panel -->
+    <div class="panel">
+      <div class="panel-head">
+        <h3><i data-lucide="list" width="18"></i> এন্ট্রি তালিকা</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div class="search"><i data-lucide="search" width="16"></i>
+            <input id="searchBox" placeholder="নাম / কোড / নম্বর খুঁজুন..." oninput="render()"></div>
+          <button class="btn btn-ghost" onclick="exportDocx()"><i data-lucide="file-text" width="16"></i> DOCX</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:60px">ক্রম</th><th>কোড নং</th><th>নাম</th>
+            <th>হোয়াটসঅ্যাপ নম্বর</th><th style="text-align:right">অ্যাকশন</th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="emptyState" style="display:none;">
+        <div class="ei"><i data-lucide="inbox" width="46"></i></div>
+        <div>এখনো কোনো এন্ট্রি নেই। "নতুন এন্ট্রি" বাটনে ক্লিক করুন।</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3><i data-lucide="user-plus" width="20"></i> <span id="modalTitle">নতুন এন্ট্রি</span></h3>
+    <input type="hidden" id="editId">
+    <div class="field"><label>কোড নং</label>
+      <input id="fCode" placeholder="যেমন: A-101" autocomplete="off"></div>
+    <div class="field"><label>নাম</label>
+      <input id="fName" placeholder="পূর্ণ নাম লিখুন" autocomplete="off"></div>
+    <div class="field"><label>হোয়াটসঅ্যাপ নম্বর</label>
+      <input id="fWa" placeholder="যেমন: 01712345678" autocomplete="off"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()"><i data-lucide="x" width="17"></i> বাতিল</button>
+      <button class="btn btn-primary" onclick="saveEntry()"><i data-lucide="check" width="17"></i> সংরক্ষণ</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><i data-lucide="check-circle" width="18"></i><span id="toastMsg"></span></div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+/* ===================================================================
+   ★★★ এখানে আপনার Firebase config বসান (উপরে যেটা কপি করেছিলেন) ★★★
+=================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyAY7OxCsQhbCLczhW1C0MhuTviwBq2zQQU",
+  authDomain: "ifteachersinfo.firebaseapp.com",
+  projectId: "ifteachersinfo",
+  storageBucket: "ifteachersinfo.firebasestorage.app",
+  messagingSenderId: "362689071110",
+  appId: "1:362689071110:web:f2a07f16676b2d77441b87"
+};
+/* =================================================================== */
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const col = collection(db, "entries");
+
+let entries = [];
+
+/* রিয়েল-টাইম sync — মোবাইল/ল্যাপটপ যেকোনো জায়গার পরিবর্তন সাথে সাথে সব জায়গায় দেখাবে */
+const q = query(col, orderBy("created", "asc"));
+onSnapshot(q, (snap) => {
+  entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  setSync(true);
+  window.render();
+  updateStats();
+}, (err) => { console.error(err); setSync(false); });
+
+function setSync(on){
+  const dot=document.getElementById('syncDot'), txt=document.getElementById('syncTxt');
+  if(on){dot.classList.add('online');txt.textContent='অনলাইন • সিঙ্ক চালু';}
+  else{dot.classList.remove('online');txt.textContent='সংযোগ নেই';}
+}
+
+/* সংরক্ষণ (নতুন বা এডিট) */
+window.saveEntry = async function(){
+  const id=document.getElementById('editId').value;
+  const code=document.getElementById('fCode').value.trim();
+  const name=document.getElementById('fName').value.trim();
+  const wa=document.getElementById('fWa').value.trim();
+  if(!code||!name||!wa){ toast('সব ঘর পূরণ করুন','err'); return; }
+  try{
+    if(id){
+      await updateDoc(doc(db,"entries",id),{code,name,wa});
+      toast('আপডেট হয়েছে','ok');
+    }else{
+      await addDoc(col,{code,name,wa,created:serverTimestamp()});
+      toast('এন্ট্রি যোগ হয়েছে','ok');
+    }
+    window.closeModal();
+  }catch(e){ toast('সমস্যা হয়েছে: '+e.message,'err'); }
+};
+
+window.editEntry = function(id){
+  const it=entries.find(x=>x.id===id); if(!it) return;
+  document.getElementById('editId').value=it.id;
+  document.getElementById('fCode').value=it.code||'';
+  document.getElementById('fName').value=it.name||'';
+  document.getElementById('fWa').value=it.wa||'';
+  document.getElementById('modalTitle').textContent='এন্ট্রি সম্পাদনা';
+  showOverlay();
+};
+
+window.deleteEntry = async function(id){
+  if(!confirm('এই এন্ট্রিটি মুছে ফেলতে চান?')) return;
+  try{ await deleteDoc(doc(db,"entries",id)); toast('মুছে ফেলা হয়েছে','ok'); }
+  catch(e){ toast('মুছতে সমস্যা','err'); }
+};
+
+/* Stats */
+function updateStats(){
+  document.getElementById('statTotal').textContent=entries.length;
+  document.getElementById('statWa').textContent=entries.filter(e=>e.wa).length;
+  const last=entries[entries.length-1];
+  document.getElementById('statLast').textContent = last ? 'আছে' : '—';
+}
+
+/* এই ফাংশনগুলো নিচের সাধারণ স্ক্রিপ্টে ব্যবহার হবে */
+window.__getEntries = ()=>entries;
+</script>
+
+<!-- সাধারণ স্ক্রিপ্ট (render, modal, docx, toast) -->
+<script>
+lucide.createIcons();
+
+function toggleMenu(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('backdrop').classList.toggle('show');
+}
+window.toggleMenu = toggleMenu;
+
+/* Modal */
+function showOverlay(){ document.getElementById('overlay').classList.add('show'); lucide.createIcons(); }
+window.openModal = function(){
+  document.getElementById('editId').value='';
+  document.getElementById('fCode').value='';
+  document.getElementById('fName').value='';
+  document.getElementById('fWa').value='';
+  document.getElementById('modalTitle').textContent='নতুন এন্ট্রি';
+  showOverlay();
+};
+window.closeModal = function(){ document.getElementById('overlay').classList.remove('show'); };
+document.getElementById('overlay').addEventListener('click',e=>{
+  if(e.target.id==='overlay') closeModal();
+});
+
+/* Toast */
+window.toast = function(msg,type){
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  t.className='toast show '+(type||'ok');
+  setTimeout(()=>t.classList.remove('show'),2600);
+};
+
+/* টেবিল রেন্ডার */
+window.render = function(){
+  const data = window.__getEntries ? window.__getEntries() : [];
+  const term=(document.getElementById('searchBox').value||'').toLowerCase();
+  const filtered=data.filter(e=>
+    (e.code||'').toLowerCase().includes(term)||
+    (e.name||'').toLowerCase().includes(term)||
+    (e.wa||'').toLowerCase().includes(term));
+  const tb=document.getElementById('tbody');
+  const empty=document.getElementById('emptyState');
+  tb.innerHTML='';
+  if(filtered.length===0){ empty.style.display='block'; }
+  else{
+    empty.style.display='none';
+    filtered.forEach((e,i)=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td class="serial">${i+1}</td>
+        <td><span class="code-pill">${esc(e.code)}</span></td>
+        <td>${esc(e.name)}</td>
+        <td><span class="wa"><i data-lucide="phone" width="15"></i> ${esc(e.wa)}</span></td>
+        <td><div class="actions">
+          <button class="btn-icon edit" title="সম্পাদনা" onclick="editEntry('${e.id}')"><i data-lucide="pencil" width="17"></i></button>
+          <button class="btn-icon del" title="মুছুন" onclick="deleteEntry('${e.id}')"><i data-lucide="trash-2" width="17"></i></button>
+        </div></td>`;
+      tb.appendChild(tr);
+    });
+  }
+  lucide.createIcons();
+};
+function esc(s){return (s||'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* DOCX এক্সপোর্ট (অটোমেটিক ক্রম নম্বর সহ) */
+window.exportDocx = async function(){
+  const data = window.__getEntries ? window.__getEntries() : [];
+  if(data.length===0){ toast('এক্সপোর্ট করার মতো ডেটা নেই','err'); return; }
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, HeadingLevel } = docx;
+
+  const headerCell=(txt)=>new TableCell({
+    shading:{fill:"6366F1"},
+    margins:{top:120,bottom:120,left:120,right:120},
+    children:[new Paragraph({alignment:AlignmentType.CENTER,
+      children:[new TextRun({text:txt,bold:true,color:"FFFFFF",size:24})]})]
+  });
+  const cell=(txt,center)=>new TableCell({
+    margins:{top:100,bottom:100,left:120,right:120},
+    children:[new Paragraph({alignment:center?AlignmentType.CENTER:AlignmentType.LEFT,
+      children:[new TextRun({text:String(txt),size:22})]})]
+  });
+
+  const rows=[ new TableRow({tableHeader:true,children:[
+    headerCell("ক্রম"),headerCell("কোড নং"),headerCell("নাম"),headerCell("হোয়াটসঅ্যাপ নম্বর")]}) ];
+
+  data.forEach((e,i)=>{
+    rows.push(new TableRow({children:[
+      cell(i+1,true), cell(e.code||'',true), cell(e.name||''), cell(e.wa||'',true)]}));
+  });
+
+  const table=new Table({
+    width:{size:100,type:WidthType.PERCENTAGE},
+    rows, borders:{
+      top:{style:BorderStyle.SINGLE,size:1,color:"CCCCCC"},
+      bottom:{style:BorderStyle.SINGLE,size:1,color:"CCCCCC"},
+      left:{style:BorderStyle.SINGLE,size:1,color:"CCCCCC"},
+      right:{style:BorderStyle.SINGLE,size:1,color:"CCCCCC"},
+      insideHorizontal:{style:BorderStyle.SINGLE,size:1,color:"E0E0E0"},
+      insideVertical:{style:BorderStyle.SINGLE,size:1,color:"E0E0E0"}}
+  });
+
+  const now=new Date().toLocaleString('bn-BD');
+  const document_ = new Document({ sections:[{ children:[
+    new Paragraph({alignment:AlignmentType.CENTER,
+      children:[new TextRun({text:"ডেটা এন্ট্রি রিপোর্ট",bold:true,size:36,color:"1a2233"})]}),
+    new Paragraph({alignment:AlignmentType.CENTER,spacing:{after:200},
+      children:[new TextRun({text:`মোট এন্ট্রি: ${data.length}  •  তারিখ: ${now}`,size:20,color:"777777"})]}),
+    table
+  ]}]});
+
+  const blob=await Packer.toBlob(document_);
+  saveAs(blob, `Data_Entry_${new Date().toISOString().slice(0,10)}.docx`);
+  toast('DOCX ডাউনলোড হচ্ছে','ok');
+};
+
+render();
+</script>
+</body>
+</html>
